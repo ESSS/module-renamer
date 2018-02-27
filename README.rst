@@ -3,17 +3,16 @@ Module Renamer
 ==============
 
 
+.. image:: https://travis-ci.org/ESSS/module-renamer.svg?branch=master
+    :target: https://travis-ci.org/ESSS/module-renamer
+    :alt: See Build Status on Travis CI
+
+.. image:: https://ci.appveyor.com/api/projects/status/github/ESSS/module-renamer?branch=master
+    :target: https://ci.appveyor.com/project/ESSS/module_renamer/?branch=master&svg=true
+    :alt: See Build Status on AppVeyor
+
 .. image:: https://img.shields.io/pypi/v/module_renamer.svg
         :target: https://pypi.python.org/pypi/module_renamer
-
-.. image:: https://img.shields.io/travis/williamjamir/module_renamer.svg
-        :target: https://travis-ci.org/williamjamir/module_renamer
-
-
-.. image:: https://pyup.io/repos/github/williamjamir/module_renamer/shield.svg
-     :target: https://pyup.io/repos/github/williamjamir/module_renamer/
-     :alt: Updates
-
 
 
 Facilitate moving python modules across project by rewriting import statements using google-pasta
