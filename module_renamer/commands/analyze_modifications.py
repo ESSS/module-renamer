@@ -7,35 +7,38 @@ from contextlib import contextmanager
 from click import ClickException, confirm, echo
 from git import Repo
 from tqdm import tqdm
-from yapf.yapflib.yapf_api import FormatFile
 
-CONFLICT_MSG = "\nUnfortunately, you moved two objects with the same name on " \
-               "different paths.\nThis situation could be catastrophic while running " \
-               "the script for rename the imports. \n" \
-               "These are the imports that have conflict: \n -> {} \n"
+CONFLICT_MSG = (
+    "\n"
+    "Unfortunately, you moved two objects with the same name on different paths.\n"
+    "This situation could be catastrophic while running the script for rename the imports. \n"
+    "These are the imports that have conflict: \n "
+    " -> {} \n"
+)
 
-INFORMATIVE_CONFLICT_MSG = 'Do you want to generate the file without this import? ' \
-                           'Otherwise this script will be aborted.'
+INFORMATIVE_CONFLICT_MSG = (
+    "Do you want to generate the file without this import? \n"
+    "Otherwise this script will be aborted."
+)
+
 Import = namedtuple("Import", ["module", "name"])
 
 
 @contextmanager
-def branch_checkout(repo, branch_name):
-    # type: (git.Repo, str) -> None
+def checkout_branch(repo, branch_name):
     """
     Change the current git branch for the branch informed on branch_name
 
-    :param repo: A git.Repo object that represents the git repository from the project
-    :type repo: git.Repo
+    :param git.Repo repo: The git repository of the project.
 
-    :param branch_name: Name of the branch that Git should move intoN
-    :type branch_name: str
+    :param str branch_name: Name of the branch that Git should move into
     """
+
     if (repo.is_dirty() or len(repo.untracked_files)) != 0:
         raise ClickException("The repository is dirty, please clean it first ")
 
     current_branch = repo.active_branch.name
-    getattr(repo.heads, branch_name).checkout()
+    repo.branches[branch_name].checkout()
 
     try:
         yield
@@ -43,20 +46,19 @@ def branch_checkout(repo, branch_name):
         getattr(repo.heads, current_branch).checkout()
 
 
-def track_modifications(**kwargs):
+def analyze_modifications(project_path, compare_with, branch, output_file):
     """
-    Command to track all modifications made between two different branches. The output will be a
-    list written directly to a file (which will later be used by the script to rename the imports)
+    Track modifications between two different branches.
+    The output will be a list written directly to a file.
+    """
 
-    :param kwargs:
-    """
-    project_path = os.path.join(kwargs['project_path'])
+    full_project_path = os.path.join(project_path)
     repo = Repo(project_path)
 
-    origin_branch = kwargs["origin_branch"]
+    origin_branch = compare_with
 
-    if kwargs['work_branch']:
-        work_branch = kwargs['work_branch']
+    if branch:
+        work_branch = branch
     else:
         work_branch = repo.active_branch.name
 
@@ -64,18 +66,20 @@ def track_modifications(**kwargs):
         raise ClickException(
             "Origin and Working branch are the same. "
             "Please, change your activate branch to where you made you changes on the code, "
-            "or use the option --origin_branch and --work_branch  ."
+            "or use the option --branch and --compare-with ."
         )
-    file_counter = total_of_py_files_on_project(project_path)
 
-    with branch_checkout(repo, origin_branch):
-        origin_import_list = {imp for imp in get_imports(project_path, file_counter)}
+    list_of_py_files = [i for i in walk_on_py_files(full_project_path)]
+    with checkout_branch(repo, origin_branch):
+        import_list_from_origin = {imp for imp in get_imports(full_project_path, list_of_py_files)}
 
-    with branch_checkout(repo, work_branch):
-        working_import_list = {imp for imp in get_imports(project_path, file_counter)}
+    with checkout_branch(repo, work_branch):
+        import_list_from_working = {imp for imp in
+                                    get_imports(full_project_path, list_of_py_files)}
 
-    modified_imports = generate_list_with_modified_imports(origin_import_list, working_import_list)
-    write_list_to_file(modified_imports, kwargs['output_file'])
+    list_with_modified_imports = generate_list_with_modified_imports(import_list_from_origin,
+                                                                     import_list_from_working)
+    write_list_to_file(list_with_modified_imports, output_file)
 
 
 def write_list_to_file(list_with_modified_imports, file_name):
@@ -90,12 +94,12 @@ def write_list_to_file(list_with_modified_imports, file_name):
 
     with open(file_name, 'w') as file:
         file.write("imports_to_move = ")
-        file.writelines(repr(list(list_with_modified_imports)))
 
-    FormatFile(file_name, in_place=True)
+        from pprint import pprint
+        pprint(list(list_with_modified_imports), stream=file, indent=4, width=120)
 
 
-def generate_list_with_modified_imports(origin_import_list, working_import_list):
+def generate_list_with_modified_imports(import_list_from_origin, import_list_from_working):
     """
     This methods looks for imports that keep the same name but has has different modules path
 
@@ -103,7 +107,8 @@ def generate_list_with_modified_imports(origin_import_list, working_import_list)
     :rtype: set
     """
 
-    origin_filtered, working_filtered = _filter_import(origin_import_list, working_import_list)
+    origin_filtered, working_filtered = _filter_import(import_list_from_origin,
+                                                       import_list_from_working)
 
     moved_imports = _find_moved_imports(origin_filtered, working_filtered)
 
@@ -123,11 +128,15 @@ def _filter_import(origin_import_list, working_import_list):
     return origin_filtered, working_filtered
 
 
-def _find_moved_imports(origin_filtered, working_filtered):
+def _find_moved_imports(list_with_import_from_origin_branch, list_with_import_from_working_branch):
+    """
+    Return a list with tuples where the first element is the origin and the second element is
+    the branch with the modifications
+    """
     list_with_modified_imports = {
         (origin.module + "." + origin.name, working.module + "." + working.name)
-        for origin in origin_filtered
-        for working in working_filtered
+        for origin in list_with_import_from_origin_branch
+        for working in list_with_import_from_working_branch
         if working.name is not '*'
         if origin.name == working.name
         if origin.module != working.module
@@ -136,6 +145,12 @@ def _find_moved_imports(origin_filtered, working_filtered):
 
 
 def _check_for_conflicts(list_with_modified_imports):
+    """
+    Checks if there is more than one object with the same module path.
+
+    If any conflict is found, the script will display the list of conflicts for the user
+    to decide either abort the script or create the list without the conflicted module path.
+    """
     import_from = [modified_import[0] for modified_import in list(list_with_modified_imports)]
     imports_with_conflict = [class_name
                              for class_name, number_of_occurrences in Counter(import_from).items()
@@ -144,14 +159,14 @@ def _check_for_conflicts(list_with_modified_imports):
         echo(CONFLICT_MSG.format('\n -> '.join(imports_with_conflict)))
 
         if confirm(INFORMATIVE_CONFLICT_MSG, abort=True):
-            list_with_modified_imports = [modified_import for modified_import in
-                                          list_with_modified_imports
+            list_with_modified_imports = [modified_import
+                                          for modified_import in list_with_modified_imports
                                           if modified_import[0] not in imports_with_conflict
                                           if modified_import[1] not in imports_with_conflict]
     return list_with_modified_imports
 
 
-def get_imports(project_path, file_counter):
+def get_imports(project_path, list_of_py_files):
     # type: (str) -> Import
     """
     Look for all .py files on the given project path and return the import statements found on
@@ -163,8 +178,8 @@ def get_imports(project_path, file_counter):
     :type project_path: str
     :rtype: commands.utils.Import
     """
-    with tqdm(total=file_counter, unit='files', leave=False, desc=project_path) as pbar:
-        for file_path in walk_on_py_files(project_path):
+    with tqdm(total=len(list_of_py_files), unit='files', leave=False, desc=project_path) as pbar:
+        for file_path in list_of_py_files:
             pbar.update()
             with open(file_path, mode='r') as file:
                 file_content = ast.parse(file.read(), file_path)
@@ -173,8 +188,7 @@ def get_imports(project_path, file_counter):
                 if isinstance(node, ast.Import):
                     module = ''
                 elif isinstance(node, ast.ImportFrom):
-                    # node.module can be None on the following situation
-                    #   from . import foo
+                    # node.module can be None when the following statement is used: from . import foo
                     if node.module is not None:
                         module = node.module
                     else:
@@ -182,8 +196,8 @@ def get_imports(project_path, file_counter):
                 else:
                     continue
 
-                for n in node.names:
-                    yield Import(module, n.name)
+                for name_node in node.names:
+                    yield Import(module, name_node.name)
 
 
 def walk_on_py_files(folder):
@@ -193,14 +207,3 @@ def walk_on_py_files(folder):
     for dir_path, _, files in os.walk(folder):
         for filename in fnmatch.filter(files, '*.py'):
             yield os.path.abspath(os.path.join(dir_path, filename))
-
-
-def total_of_py_files_on_project(project_path):
-    """
-    Helper function to find the total number of py files that needs to be iterated.
-    :return: Total number of py files
-    """
-    file_counter = 0
-    for _ in walk_on_py_files(project_path):
-        file_counter += 1
-    return file_counter
