@@ -18,6 +18,9 @@ Module Renamer
 .. image:: https://landscape.io/github/ESSS/module-renamer/master/landscape.svg?style=flat
     :target: https://landscape.io/github/ESSS/module-renamer/master/
 
+.. image:: https://api.codeclimate.com/v1/badges/ae31b7d1b5eedcc010c3/maintainability
+   :target: https://codeclimate.com/github/ESSS/module-renamer/maintainability
+
 .. image:: https://scrutinizer-ci.com/g/ESSS/module-renamer/badges/quality-score.png?b=master
     :target: https://scrutinizer-ci.com/g/ESSS/module-renamer
 

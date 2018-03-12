@@ -9,3 +9,8 @@ codecov>=1.4.0
 pytest-cov
 pytest==3.4.1
 pytest-runner==4.0
+click==6.7
+GitPython==2.1.8
+git+https://github.com/google/pasta.git@91cbb35e288095f71e5a19fb64d083c87c7193ab#egg=google_pasta
+six==1.11.0
+tqdm==4.19.6
