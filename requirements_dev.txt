@@ -1,4 +1,4 @@
-pip==9.0.1
+pip==9.0.2
 bumpversion==0.5.3
 wheel==0.30.0
 watchdog==0.8.3
@@ -14,3 +14,4 @@ GitPython==2.1.8
 git+https://github.com/google/pasta.git@91cbb35e288095f71e5a19fb64d083c87c7193ab#egg=google_pasta
 six==1.11.0
 tqdm==4.19.6
+futures==3.1.1

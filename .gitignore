@@ -102,3 +102,5 @@ ENV/
 
 .idea/
 .pytest_cache/
+
+.vscode/
