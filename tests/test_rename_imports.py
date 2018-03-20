@@ -1,16 +1,15 @@
 import os
 
 import pytest
-from click.testing import CliRunner
 from module_renamer.cli import rename
 
 
 @pytest.fixture
 def run_cli_rename():
-    def _run_cli_rename(dir, file):
+    def _run_cli_rename(project_path, file_path):
         from click.testing import CliRunner
         runner = CliRunner()
-        return runner.invoke(rename, [dir, file])
+        return runner.invoke(rename, [project_path, file_path])
 
     return _run_cli_rename
 
