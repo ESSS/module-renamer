@@ -25,7 +25,7 @@ def execute_rename(project_path, path_to_moved_imports_file):
     :param str path_to_moved_imports_file:
         Path of the file with the list of changed imports.
     """
-    list_of_py_files = [i for i in walk_on_py_files(project_path)]
+    list_of_py_files = list(walk_on_py_files(project_path))
     file_counter = len(list_of_py_files)
 
     with futures.ThreadPoolExecutor(max_workers=30) as executor:
@@ -35,11 +35,21 @@ def execute_rename(project_path, path_to_moved_imports_file):
         }
 
         done_list = tqdm(futures.as_completed(future_map), total=file_counter, unit="files", leave=False)
+        list_of_exception = []
         for future in done_list:
+            file_name = future_map[future]
             try:
                 future.result()
             except Exception as exc:
-                click.ClickException(exc)
+                list_of_exception.append((exc, file_name))
+
+        if list_of_exception:
+            summary_of_exceptions = ['The following exception(s) has occurred while parsing the files: \n']
+            for exception, file_name in list_of_exception:
+                msg = 'File {0} generated an exception: {1}'.format(file_name, exception)
+                summary_of_exceptions.append(msg)
+
+            raise click.ClickException('\n'.join([str(x) for x in summary_of_exceptions]))
 
 
 def rename_file(file_path, path_to_moved_imports_file):
@@ -55,14 +65,12 @@ def rename_file(file_path, path_to_moved_imports_file):
 
     with open(file_path, mode='r') as file:
         tree = pasta.parse(file.read())
-        for moved_import in list_with_moved_imports:
-            old_path = moved_import[0]
-            new_path = moved_import[1]
+        for old_path, new_path in list_with_moved_imports:
             try:
                 rename.rename_external(tree, old_path, new_path)
             except ValueError:
-                click.ClickException("Some error happened on the following path: {0}.\n "
-                                     "While trying to rename from: {1} to {2}"
+                raise click.ClickException("An error has occurred on the following path: {0} ,\n "
+                                     "while trying to rename from: {1} to {2}"
                                      .format(file_path, old_path, new_path))
         source_code = pasta.dump(tree)
 
