@@ -9,8 +9,7 @@ environment:
       TOX_ENV: "py36"
 
 install:
-  - "%PYTHON%/Scripts/pip install tox"
-  - "%PYTHON%/Scripts/pip install wheel"
+  - "%PYTHON%/python.exe -m pip install -U pip tox wheel"
 
 build: false  # Not a C# project, build stuff at the test step instead.
 
