@@ -1,5 +1,4 @@
 import ast
-import fnmatch
 import os
 from collections import Counter, namedtuple
 from contextlib import contextmanager
@@ -7,6 +6,8 @@ from contextlib import contextmanager
 from click import ClickException, confirm, echo
 from git import Repo
 from tqdm import tqdm
+
+from module_renamer.commands.utils import walk_on_py_files
 
 CONFLICT_MSG = (
     "\n"
@@ -200,10 +201,3 @@ def get_imports(project_path, list_of_py_files):
                     yield Import(module, name_node.name)
 
 
-def walk_on_py_files(folder):
-    """
-    Walk through each python files in a directory
-    """
-    for dir_path, _, files in os.walk(folder):
-        for filename in fnmatch.filter(files, '*.py'):
-            yield os.path.abspath(os.path.join(dir_path, filename))
